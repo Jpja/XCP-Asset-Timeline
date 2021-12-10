@@ -14,6 +14,8 @@ All broadcasts, asset issuances and token destructions are extracted from the la
 
 When `counterparty.html` or `dogeparty.html` loads, the relevant timeline is generated.
 
+A query string with parameter `asset` can be specified, e.g. `counterparty.html?asset=JPJA` shows the timeline for JPJA.
+
 Run a Counterparty / Dogeparty node to get the current DB.
 
 ## Milestones
