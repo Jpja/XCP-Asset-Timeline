@@ -10,7 +10,7 @@ Live versions:
 
 ## How It Works
 
-All broadcasts, asset issuances and token destructions are extracted from the latest DB with `db/counterparty_db_to_js.py` or `db/dogeparty_db_to_js.py`. The generated JS arrays are written to `db/cp_history.js` or `db/cp_history.js`.
+All broadcasts, asset issuances and token destructions are extracted from the latest DB with `db/counterparty_db_to_js.py` or `db/dogeparty_db_to_js.py`. The generated JS arrays are written to `db/cp_history.js` or `db/dp_history.js`.
 
 When `counterparty.html` or `dogeparty.html` loads, the relevant timeline is generated.
 

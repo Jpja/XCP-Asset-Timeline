@@ -172,7 +172,7 @@ for i in range(len(msg)):
 
   
 #Write .js file containing entire msg history
-out = "//Table with relevant info for Counterparty asset history search\n\nlet cp_history = " + str(msg) + ";"
+out = "//Table with relevant info for Dogeparty asset history search\n\nlet cp_history = " + str(msg) + ";"
 file = open('dp_history.js', 'w', encoding="utf-8")
 file.write(out)
 file.close()
