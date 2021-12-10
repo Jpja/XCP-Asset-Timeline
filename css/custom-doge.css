@@ -1,0 +1,24 @@
+#content {
+  font-family: "Comic Sans MS", "Comic Sans", cursive;
+  margin: auto;
+  max-width: 1200px;
+}
+
+h1 {
+  font-family: "Comic Sans MS", "Comic Sans", cursive;  
+}
+#header {
+  font-family: "Comic Sans MS", "Comic Sans", cursive;
+  text-align: center;
+}
+
+#history_table{
+  width:100%;
+  table-layout: fixed;
+  overflow-wrap: break-word;
+  margin-top: 25px;
+}
+
+ul {
+  list-style-type: none;
+}

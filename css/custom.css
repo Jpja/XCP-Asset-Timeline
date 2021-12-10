@@ -1,0 +1,19 @@
+#content {
+  margin: auto;
+  max-width: 1200px;
+}
+
+#header {
+  text-align: center;
+}
+
+#history_table{
+  width:100%;
+  table-layout: fixed;
+  overflow-wrap: break-word;
+  margin-top: 25px;
+}
+
+ul {
+  list-style-type: none;
+}

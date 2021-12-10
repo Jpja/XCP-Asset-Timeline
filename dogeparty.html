@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Dogeparty Asset Timeline</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="favicon/dogeparty.ico">
+    <link rel="stylesheet" href="css/w3.css">
+    <link rel="stylesheet" href="css/font-awesome-all.min.css">
+    <link rel="stylesheet" href="css/topnav.css">
+    <link rel="stylesheet" href="css/comic-sans-ms.css" type="text/css" />
+    <link rel="stylesheet" href="css/custom-doge.css">
+  </head>
+  <body>
+    <div id="content" class="w3-container">
+      <div class="topnav">
+        <a class="w3-yellow" id="title"><b>Dogeparty Asset Timeline</b></a>
+        <a href="#" onclick="list_of_firsts()">Milestones</a>
+        <a href="#" onclick="asset_history('RND')">Random</a>
+        <div class="search-container">
+          <input type="text" placeholder="Search.." id="search" name="counterparty_search" oninput="search_color()">
+          <button type="submit" id="search_button" onclick="let val = document.getElementById('search').value;asset_history(val);"><i class="fa fa-search"></i></button>
+        </div>
+      </div>
+      <div id="header" style="text-align: center;padding-left:16px;padding-right:16px;">&nbsp;</div>
+      <div id="history" style="text-align: center;padding-left:16px;padding-right:16px;"><h2>Loading Table...</h2></div>
+      <div id="footer" style="text-align: center;padding-left:16px;padding-right:16px;padding-top:30px;padding-bottom:30px;">
+        <a href="counterparty.html">Switch to Counterparty</a><br><br>
+        Made by JP Janssen<br>
+        Source code on <a href="https://github.com/Jpja/XCP-Asset-Timeline">Github</a><br>
+        MIT license<br><br>
+        <a href="https://jpjanssen.com/donation-dispensers-for-my-xcp-projects/">Donate</a><br>
+        and get vintage tokens in return<br>
+        BTC Dispenser: bc1qg8vldv8kk4mqafs87z2yv0xpq4wr4csucr3cj7<br>
+        DOGE Dispenser: DChdsuLuEvAPZb9ZXpiEpimgidSJ5VqShq
+      </div>
+    </div>
+
+    <script src="db/dp_history.js"></script>
+    <script src="js/latinize.js"></script>
+    <script src="js/burn_address.js"></script>
+    <script src="js/helper_functions.js"></script>
+    <script>
+
+      //Click ENTER to search
+      document.getElementById("search")
+        .addEventListener("keyup", function(event) {
+        event.preventDefault();
+        if (event.keyCode === 13) {
+          document.getElementById("search_button").click();
+        }
+      });
+
+      //The loaded arrays are optimized for size
+      //Prepare objects with named properties, easier to work with
+      let assets = [];
+      for (const x of cp_history) {
+        if (x[2] == 1) {
+          assets.push(x[4]);
+        }
+      }
+      let divisble = {};
+      let supply = {}; //keep track of supply for each asset
+      let issuer = {} //keep track of isser for each asset
+      let issuance_rights = {} //keep track of issuance rights for each address
+      for (const x of assets) {
+        supply[x] = 0;
+      }
+      let table = [];
+      for (let i = 0; i < cp_history.length; i++) {
+        table[i] = {};
+
+        table[i].broadcast = '';
+        table[i].description = '';
+        table[i].text = ''; //one common key for broadcast and description
+        table[i].search = '';
+        table[i].search_words = '';
+
+        table[i].txid = cp_history[i][0];
+        table[i].newissuer = 0;
+
+        let t = new Date(cp_history[i][1]*1000);
+        table[i].date = t.toISOString().split('T')[0];
+
+        let type = cp_history[i][2];
+        if (type < 0 || type > 4) console.log(i + 'Sanity check fail; type not supported');
+        let keys = ['broadcast', 'new', 'update', 'lock', 'destroy'];
+        table[i].type = keys[type];
+
+        table[i].address = cp_history[i][3];
+        table[i].addr_short = addr_short(table[i].address);
+        table[i].asset = cp_history[i][4];
+        table[i].asset_arr = []; //to allow for several asset to be mentioned in broadcast
+        table[i].asset_family = String(table[i].asset).split('.')[0]; //subasset's parent
+
+        if (table[i].address in issuance_rights == false) issuance_rights[table[i].address] = [];
+
+        if(table[i].type == 'broadcast') {
+          table[i].broadcast = cp_history[i][5];
+          table[i].text = table[i].broadcast;
+          table[i].search_words = latinize(table[i].broadcast).toUpperCase();
+          table[i].search = table[i].search_words.replace(/ /g,'');
+          //mentions own asset? assign asset to broadcast
+          for (let j =0; j < issuance_rights[table[i].address].length; j++) {
+            if (table[i].search.includes(issuance_rights[table[i].address][j].split('.')[0])) {
+              table[i].asset = issuance_rights[table[i].address][j];
+              table[i].asset_arr.push(table[i].asset);
+              //console.log(table[i].address + '  ' + table[i].asset + '  ' + table[i].asset_arr + ' => ' + table[i].broadcast);
+            }
+          }
+        }
+
+        if(table[i].type == 'new' || table[i].type == 'update' || table[i].type == 'lock') {
+          table[i].quantity = cp_history[i][5];
+          supply[table[i].asset] += Number(table[i].quantity);
+          table[i].supply = supply[table[i].asset];
+          table[i].divisible = cp_history[i][6];
+          table[i].description = cp_history[i][7];
+          table[i].search_words = latinize(String(table[i].description)).toUpperCase();
+          table[i].search = table[i].search_words.replace(/ /g,'');
+          table[i].text = table[i].description;
+          if (table[i].address != 0) { //new or transfer
+            table[i].newissuer = 1;
+            if (table[i].asset in issuer) { //transfer, not new
+              let old_issuer = issuer[table[i].asset];
+              issuance_rights[old_issuer].splice(issuance_rights[old_issuer].indexOf(table[i].asset), 1);
+            }
+            let new_issuer = table[i].address;
+            issuance_rights[new_issuer].push(table[i].asset);
+            issuer[table[i].asset] = new_issuer;
+          }
+          divisble[table[i].asset] = table[i].divisible; //quirk; destructions table doesn't show divisible. This object keeps track of divisibility
+        }
+
+        if(table[i].type == 'lock') {
+          table[i].lock = 1;
+        } else {
+          table[i].lock = 0;  
+        }
+
+        if(table[i].type == 'destroy') {
+          table[i].quantity = cp_history[i][5];
+          supply[table[i].asset] -= Number(table[i].quantity);
+          table[i].supply = supply[table[i].asset];
+          table[i].description = cp_history[i][6];
+          table[i].text = table[i].description;
+          table[i].divisible = divisble[table[i].asset];
+        }
+
+        //Clean up some properties
+        if (table[i].asset_arr[0] == '') table[i].asset_arr[0] = table[i].asset;
+        if (table[i].text == 0) table[i].text ='';
+      }
+      let last_date = table[table.length-1].date;
+
+      let url_string = window.location.href;
+      let url = new URL(url_string);
+      let query = url.searchParams.get("asset");
+      asset_history(query);
+
+
+
+
+
+      // **************************
+      // *** TIMELINE FOR ASSET ***
+      // **************************
+      function asset_history(asset) {
+        let header = '';
+
+        //No parameter -> Show Milestones
+        if (asset == null) {
+          list_of_firsts();
+          return;
+        }
+
+        if (asset.includes('.')) {
+          //Subasset, case sensitive
+        } else {
+          asset = asset.toUpperCase();
+        }
+
+        //magic word 1ST generates a list of 'firsts' (milestones)
+        if (asset == '1ST') {
+          list_of_firsts();
+          return;
+        }
+
+        //magic word RND unveils a random asset
+        if (asset == 'RND') {
+          asset = assets[Math.floor(Math.random()*assets.length)];
+        }
+
+        if (assets.includes(asset)) {  
+          header += '<h1>'+asset+'</h1><p>Relevant events including broadcasts by the issuer and third parties.</p>'; 
+        } else {
+          header += '<h1>'+asset+' (N/A)</h1>';
+          if (isValidAsset(asset)) {
+            header += '<p>No asset with name ' + asset + ' found.<br>';     
+            header += 'Our DB includes data up until '+ last_date + '. It may have been registered since then.<br>';     
+          } else {
+            header += '<p>' + asset + ' is not a valid asset name.<br>';
+          }
+          header += 'Below table shows any broadcasts where the keyword '+ asset.split('.')[0] + ' is mentioned<br>';     
+        }
+        document.getElementById('header').innerHTML = header;
+
+
+        let output = '<table class="w3-table-all" id="history_table">';
+        output += '<tr class="w3-yellow">';
+        //output += '<th>Tx</th>';
+        output += '<th style="width: 12%;">Date</th>';
+        output += '<th style="width: 12%;">Address</th>';
+        output += '<th style="width: 12%;">Event</th>';
+        output += '<th>Description</th>';
+        output += '</tr>';
+        let issuer = '';
+        let asset_family = asset.split('.')[0]; //subasset's parent
+        let isSubasset = asset.includes('.');
+
+        //Loop entire CP history for relevant events
+        for (const x of table) {
+          //keep track of current issuer
+          if (x.asset == asset && x.newissuer == 1) issuer = x.address;
+
+          //break down 'type' into 'event'
+          //shall be either none or one event, never more
+          let event = '';
+          let cnt = 0;
+
+          if (x.type == 'broadcast') {
+            if (x.address == issuer) {
+              if (x.search.includes(asset_family)) {
+                event = 'issuer_mention'; cnt += 1;
+                //console.log(x.date + '  ' + asset + '  ' + issuer + '  ' + x.broadcast);
+              } else {
+                event = 'issuer_msg'; cnt += 1;
+              } 
+            } else {
+              if (x.search.includes(asset_family)) {
+                event = 'other_mention'; cnt += 1;
+                //console.log(x.date + '  ' + asset + '  issuer: ' + issuer + '  broadcaster: ' + x.address + '  ' + x.broadcast);
+              }
+            }
+          }
+
+          if (x.type == 'new') {
+            if (x.asset == asset) {
+              event = 'initial_issuance'; cnt += 1;
+              //console.log(x.date + '  ' + asset + ' created');
+            } else if (x.asset_family == asset_family) {
+              if (isSubasset) {
+                if (x.asset.includes('.')) {
+                  event = 'issue_sibling'; cnt += 1;
+                  //console.log(x.date + '  ' + asset + ' => ' + x.asset + ' sibling subasset created');
+                } else {
+                  event = 'issue_parent'; cnt += 1;
+                  //console.log(x.date + '  ' + asset + ' => ' + x.asset + ' parent asset created');                  
+                }
+              } else {
+                event = 'issue_subasset'; cnt += 1;
+                //console.log(x.date + '  ' + asset + ' => ' + x.asset + ' subasset  created');
+              }
+            }
+          }          
+
+          if (x.type == 'update' || x.type == 'lock') {
+            if (x.asset == asset) {
+              event = 'update_asset'; cnt += 1;
+              //console.log(x.date + '  ' + asset + ' update, ' + x.quantity + 'x (div ' + x.divisible + ') text: ' + x.description + ', lock: ' + x.lock + ', transfer:' + x.newissuer);
+            }            
+          }
+
+          if (x.type == 'destroy') {
+            if (x.asset == asset) {
+              event = 'destroy_supply'; cnt += 1;
+            }
+          }
+
+          if (cnt == 0) continue;
+          if (cnt > 1) console.log('Sanity chack fail; more than 1 event  ' + x.txid + '  ' + x.asset);
+
+
+          //Prepare text
+          let msg = '';
+          let event_print = '';
+          let rank = 1; //0 for less important, change style
+          if (issuer == '') {
+            rank = 0;
+            msg += '[PRE CREATION] ';
+          }
+
+          if (event == 'issuer_mention') {
+            msg += mark_keyword(x.broadcast, asset_family);
+            event_print = 'ADD INFO';
+          }
+          if (event == 'issuer_msg') {
+            rank = 0;
+            msg += x.broadcast;
+            event_print = 'ISSUER MSG';
+          }
+          if (event == 'other_mention') {
+            rank = 0;
+            //msg += x.addr_short + ' mentions ' + asset_family + ': ' + mark_keyword(x.broadcast, asset_family);
+            msg += mark_keyword(x.broadcast, asset_family);
+            event_print = 'MENTION';
+          }
+          if (event == 'initial_issuance') {
+            rank = 2;
+            let locked = (x.lock == 1) ? 'locked ' : ''; 
+            msg += x.asset + ' created with a ' + locked + 'supply of ' + formatq(x.quantity, x.divisible);
+            event_print = 'NEW ASSET';
+            if (x.description == '') {
+              msg += ', no description given. ';
+            } else {
+              msg += ', description "' + x.description + '". ';
+            }
+          }
+          if (event == 'issue_sibling') {
+            msg += 'Sibling asset ' + x.asset + ' created.';
+            event_print = 'NEW ASSET';
+          }
+          if (event == 'issue_parent') {
+            msg += 'Parent asset ' + x.asset + ' created.';
+            event_print = 'NEW ASSET';
+          }
+          if (event == 'issue_subasset') {
+            msg += 'Subasset ' + x.asset + ' created.';
+            event_print = 'NEW ASSET';
+          }
+          if (event == 'update_asset') {
+            if (x.quantity != '0') msg += 'Additional ' + formatq(x.quantity, x.divisible) + ' issued. ';
+            if (x.description != '0') msg += 'Description changed to "' + x.description + '". ';
+            if (x.newissuer == 1) msg += 'Issuance right transferred to ' + x.address + '. ';
+            if (x.lock == 1) msg += 'Token supply locked. ';
+            event_print = 'UPDATE';
+          }
+          if (event == 'destroy_supply') {
+            console.log(x.quantity + '  ' + x.description);
+            msg += 'Supply reduced by ' + formatq(x.quantity, x.divisible);
+            if (x.description != '') msg += ', tag "' + x.description + '"';
+            msg += '.';
+            event_print = 'DESTROY';
+          }
+
+          let datedisp = x.date;
+
+          let out_addr = x.addr_short;
+          if (out_addr == '') out_addr = addr_short(issuer);
+
+          let tr = '<tr>';
+          if (rank == 0) {
+            tr = '<tr style="color:dimgrey">';
+          }
+          if (rank == 2) {
+            tr = '<tr style="font-weight:bold;background-color:#FFFF99">';
+          }
+
+          output += tr;
+          output += '<td><a href="https://dogeparty.xchain.io/tx/' + x.txid + '" style="color:inherit;text-decoration:inherit;">' + datedisp + '</a></td>';
+          output += '<td><a href="https://dogeparty.xchain.io/address/' + x.address + '" style="color:inherit;text-decoration:inherit;">' + out_addr + '</td>';
+          output += '<td style="@media screen and (min-width: 1000px) {white-space: nowrap;}">' + event_print + '</td>';
+          output += '<td>' + msg + '</td>';
+          output += '</tr>';
+        }
+
+        output += '</table>';
+        output += '<ul>';
+        output += '<li>Events up to <b>' + last_date + '</b> are included.';
+        output += '</ul>';
+        output += '<ul>';
+        output += '<li><b>NEW ASSET</b> is the initial issuance of a new asset.</li>';
+        output += '<li><b>UPDATE</b> is a change of token properties by the issuer.</li>';
+        output += '<li><b>DESTROY</b> is an action where tokens are removed from the supply.</li>';
+        output += '<li><b>ADD INFO</b> is a broadcast by the issuer where the asset is mentioned.</li>';
+        output += '<li><b>ISSUER MSG</b> is any other broadcast by the issuer and may not be relevant.</li>';
+        output += '<li><b>MENTION</b> is a broadcast where the asset name is mentioned by someone other than the issuer.</li>';
+        output += '</ul>';
+        output += '<ul>';
+        output += '<li>Permanent link: ' + url_string.split('?')[0].replace('#','') + '?asset=' + asset;
+        output += '</ul>';
+
+        output += '</div>';
+        document.getElementById('history').innerHTML = output;
+      }
+
+
+
+
+
+      // ******************
+      // *** MILESTONES ***
+      // ******************
+      function list_of_firsts() {
+        let first = []; //Time, Asset, Title, Comment
+
+        //Asset Zero = DOGE
+        //Confirm by viewing 'assets' and 'blocks' tables in Counterparty DB
+        let ts_btc = new Date(1407939936*1000);
+        let t_btc = ts_btc.toISOString().split('T')[0];
+        first.push([t_btc, 0, 'DOGE', 'Asset Zero', 'Dogecoin has Asset ID #0. Every Dogecoin transaction since block 335,643 is recorded.']);
+
+        //First Asset = XDP
+        //Confirm by viewing 'assets', 'burns' and 'blocks' tables
+        //1st burn on block 335643 with timestamp 1407939936
+        let ts0_xcp = new Date(1407939936*1000);
+        let t0_xcp = ts0_xcp.toISOString().split('T')[0];
+        first.push([t0_xcp, 0, 'XDP', 'First Asset', 'XDP has Asset ID #1 and is created from 3945 separate Dogecoin transactions.']);
+
+        //First User Asset
+        for (const x of table) {
+          if (x.type == 'new') {
+            first.push([x.date, x.txid, x.asset, 'First User Asset', 'This is the first user asset.']);
+            break;
+          }
+        }
+
+        //First Indivisible Asset
+        for (const x of table) {
+          if (x.type == 'new' && x.divisible == 0) {
+            first.push([x.date, x.txid, x.asset, 'First Indivisible Asset', 'The first user asset with indivisible tokens.']);
+            break;
+          }
+        }
+
+        //First Description
+        for (const x of table) {
+          if (x.description != 0) {
+            first.push([x.date, x.txid, x.asset, 'First Description', '<i>'+x.description+'</i> is the first description added to an asset.']);
+            break;
+          }
+        }
+
+        //First Locked Asset
+        for (const x of table) {
+          if (x.lock == 1) {
+            first.push([x.date, x.txid, x.asset, 'First Locked Asset', 'The first time a token supply is capped.']);
+            break;
+          }
+        }
+
+        //First Transfered Asset
+        for (const x of table) {
+          if (x.newissuer == 1 && x.type == 'update') {
+            first.push([x.date, x.txid, x.asset, 'First Asset Transfer', 'The first time an issuance right changes address.']);
+            break;
+          }
+        }
+
+        //First NFT
+        for (const x of table) {
+          if (x.supply == 1 && x.lock == 1) {
+            first.push([x.date, x.txid, x.asset, 'First NFT', 'The first time a non-fungible token is minted, i.e. supply locked at one indivisible token.']);
+            break; 
+          }
+        }
+
+        //First Single Satoshi NFT
+        for (const x of table) {
+          if (x.supply == 1 && x.divisible == 1 & x.lock == 1) {
+            first.push([x.date, x.txid, x.asset, 'First Satoshi NFT', 'The first time an asset is locked at 0.00000001 tokens, i.e. at one indivisible satoshi.']);
+            break;
+          }
+        }
+
+        //First Subasset NFT
+        for (const x of table) {
+          if (x.supply == 1 && isValidSubasset(x.asset) & x.lock == 1) {
+            first.push([x.date, x.txid, x.asset, 'First Subasset NFT', 'The first time a subasset is locked at one indivisible token']);
+            break;
+          }
+        }
+
+        //First Numeric NFT
+        for (const x of table) {
+          if (x.supply == 1 && isValidNumericAsset(x.asset) & x.lock == 1) {
+            first.push([x.date, x.txid, x.asset, 'First Numeric NFT', 'The first time a numeric asset is locked at one indivisible token']);
+            break;
+          }
+        }
+
+        //First Tokenless Asset (is a numeric one)
+        for (const x of table) {
+          if (x.lock == 1 && x.supply == 0) {
+            first.push([x.date, x.txid, x.asset, 'First Tokenless Asset', 'The first time an asset is locked without minting any tokens first.']);
+            break;
+          }
+        }
+
+        //First Non-English
+        for (const x of table) {
+          if (isASCII(x.text) == false && x.asset != 0) {
+            first.push([x.date, x.txid, x.asset, 'First Non-English', '<i>' + x.text + '</i> is the first text  with a non-ASCII character.']);
+            break;
+          }
+        }
+
+        //First Broadcast
+        for (const x of table) {
+          if (x.type == 'broadcast') {
+            first.push([x.date, x.txid, '(No Asset)', 'First Broadcast', '<i>' + x.broadcast + '</i> is the first broadcast.']);
+            break;
+          }
+        }
+
+        //First Info in Broadcast
+        for (const x of table) {
+          if (x.type == 'broadcast' && x.asset != 0 && isMatch(x.search_words, x.asset)) {
+            first.push([x.date, x.txid, x.asset, 'First Info Broadcast', '<i>' + x.broadcast + '</i> is the first broadcast where issuer mentions own asset.']);
+            break;
+          }
+        }
+
+        //First Subasset
+        for (const x of table) {
+          if (isValidSubasset(String(x.asset))) {
+            first.push([x.date, x.txid, x.asset, 'First Subasset', 'This is the first subasset.']);
+            break;
+          }
+        }
+
+        //First Numeric Asset
+        for (const x of table) {
+          if (isValidNumericAsset(x.asset)) {
+            first.push([x.date, x.txid, x.asset, 'First Numeric Asset', 'This is the first numeric asset.']);
+            break;
+          }
+        }
+
+        //First Token Destruction
+        for (const x of table) {
+          if (x.type == 'destroy') {
+            first.push([x.date, x.txid, x.asset, 'First Token Destruction', 'A total of ' + formatq(x.quantity, x.divisible) + ' were destroyed with tag <i>' + x.description + '</i>.']);
+            break;
+          }
+        }
+
+
+        //First URL in description
+        //  https://stackoverflow.com/questions/3809401/what-is-a-good-regular-expression-to-match-a-url
+        for (const x of table) {
+          if (/[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&=]*)/.test(x.text)) {
+            first.push([x.date, x.txid, x.asset, 'First URL', '<i>'+x.text+'</i> is the first description with a link.']);
+            break;
+          }
+        }
+
+        let files = [];
+        //First video in description
+        files = ['mp4','mov','avi','avchd','flv','f4v','swf','webm','youtu','vimeo','dailymotion'];
+        inner: for (const x of table) {
+          if (x.asset == 0) continue;
+          for (const f of files) {
+            if (isMatch(x.text, f)) {
+              first.push([x.date, x.txid, x.asset, 'First Video', '<i>'+x.text+'</i> is the first description with a video reference.']);
+              break inner;
+            }
+          }
+        }
+
+
+        //First image in description
+        files = ['jpg','jpeg','gif','png','img','image','pic','photo'];
+        inner: for (const x of table) {
+          if (x.asset == 0) continue;
+          for (const f of files) {
+            if (isMatch(x.text, f)) {
+              first.push([x.date, x.txid, x.asset, 'First Image', '<i>'+x.text+'</i> is the first description with an image reference.']);
+              break inner;
+            }
+          }
+        }
+
+        //First JPEG in description
+        files = ['jpg','jpeg'];
+        inner: for (const x of table) {
+          if (x.asset == 0) continue;
+          for (const f of files) {
+            if (isMatch(x.text, f)) {
+              first.push([x.date, x.txid, x.asset, 'First JPEG', '<i>'+x.text+'</i> is the first description with a JPG or JPEG reference.']);
+              break inner;
+            }
+          }
+        }
+
+        //First GIF in description
+        files = ['gif'];
+        inner: for (const x of table) {
+          if (x.asset == 0) continue;
+          for (const f of files) {
+            if (isMatch(x.text, f)) {
+              first.push([x.date, x.txid, x.asset, 'First GIF', '<i>'+x.text+'</i> is the first description with a GIF reference.']);
+              break inner;
+            }
+          }
+        }
+
+        //First PNG in description
+        files = ['png'];
+        inner: for (const x of table) {
+          if (x.asset == 0) continue;
+          for (const f of files) {
+            if (isMatch(x.text, f)) {
+              first.push([x.date, x.txid, x.asset, 'First PNG', '<i>'+x.text+'</i> is the first description with a PNG reference.']);
+              break inner;
+            }
+          }
+        }
+
+
+        //First eBook reference
+        files = ['ebook', 'pdf', 'kindle', 'epub', 'doc'];
+        inner: for (const x of table) {
+          if (x.asset == 0) continue;
+          for (const f of files) {
+            if (isMatch(x.text, f)) {
+              first.push([x.date, x.txid, x.asset, 'First eBook', '<i>'+x.text+'</i> is the first description with an eBook reference.']);
+              break inner;
+            }
+          }
+        }
+
+        //First JSON reference
+        // happens also to be before keywords csv and api
+        files = ['json', 'csv', 'api'];
+        inner: for (const x of table) {
+          if (x.asset == 0) continue;
+          for (const f of files) {
+            if (isMatch(x.text, f)) {
+              first.push([x.date, x.txid, x.asset, 'First JSON', '<i>'+x.text+'</i> is the first description with a JSON reference.']);
+              break inner;
+            }
+          }
+        }
+
+        //First Card reference
+        // happens also to be before keywords csv and api
+        files = ['card', 'cards'];
+        inner: for (const x of table) {
+          if (x.asset == 0) continue;
+          for (const f of files) {
+            if (isMatch(x.text, f)) {
+              first.push([x.date, x.txid, x.asset, 'First Card', '<i>'+x.text+'</i> is the first description with a card reference.']);
+              break inner;
+            }
+          }
+        }
+
+        //First PEPE
+        for (const x of table) {
+          if (String(x.asset) == 'PEPE' || x.text.includes('PEPE')) {
+            first.push([x.date, x.txid, x.asset, 'First Pepe', 'This is the first time Pepe appears in a name or text.']);
+            break;
+          }
+        }
+
+        //First embedded image
+        for (const x of table) {
+          if (x.search.includes('DATA:IMAGE') && x.asset != 0) {
+            first.push([x.date, x.txid, x.asset, 'First Embedded Image', 'The entire image is included in the followig message, which here is cut short to save space: <i>' + x.text.slice(0,120) + '...</i>']);
+            break;
+          }
+        }
+
+        //First mention of NFT
+        for (const x of table) {
+          if (x.search_words.includes('NFT') && x.asset != 0) {
+            first.push([x.date, x.txid, x.asset, 'First Mention of \'NFT\'', 'Description <i>'+x.text+'</i>.']);
+            break;
+          }
+        }
+
+        let regular_asset = false;
+        //First Name with NFT
+        regular_asset = false;
+        for (const x of table) {
+          if (String(x.asset).includes('NFT')) {
+            first.push([x.date, x.txid, x.asset, 'First \'NFT\' in Name', 'This is the first time an asset name includes the acronym NFT.']); 
+            if (isValidAlphabeticAsset(x.asset)) regular_asset = true;
+            break;
+          }
+        }
+
+        //First Regular Name with NFT
+        if (regular_asset == false) {
+          for (const x of table) {
+            if (String(x.asset_family).includes('NFT')) {
+              first.push([x.date, x.txid, x.asset, 'First \'NFT\' in Regular Name', 'This is the first time a regular asset name includes the acronym NFT.']);
+              break;
+            }
+          }
+        }
+
+
+        //First Burned Asset
+        regular_asset = false;
+        for (const x of table) {
+          if (x.newissuer == 1 && x.type == 'update') {
+            if (isBurnAddress(x.address, 10, true)) {
+              //if (isBurnAddress(x.address)) { //without 'speedup' the result is the same
+              first.push([x.date, x.txid, x.asset, 'First Burned Asset', 'The first time an issuance right is transfered to a burn address, locking not only the token supply but also the description and creation of subassets. The burn address is '+x.address+'.']);
+              if (isValidAlphabeticAsset(x.asset)) regular_asset = true;
+              break;
+            }
+          }
+        }
+
+        //First Burned Regular Asset
+        if (regular_asset == false) {
+          for (const x of table) {
+            if (x.newissuer == 1 && x.type == 'update' && isValidAlphabeticAsset(x.asset)) {
+              if (isBurnAddress(x.address, 10, true)) {
+                //if (isBurnAddress(x.address)) { //without 'speedup' the result is the same
+                first.push([x.date, x.txid, x.asset, 'First Burned Name Asset', 'The first time the issuance right of a regular named asset is transfered to a burn address; '+x.address+'.']);
+                break;
+              }
+            }
+          }
+        }
+
+        first.sort(function(a,b) {return a[1]-b[1]});
+
+        let header = '';
+        header += '<br><p style="font-weight:bold;background-color:#FFFF99"">&nbsp;<br>';
+        header += 'Tip: Use Search Bar To Find An Asset<br>&nbsp;</p>';
+        header += '<h1>Dogeparty Milestones</h1><p>These events happened onchain.<br>Everything can be verified through code.</p>';
+        document.getElementById('header').innerHTML = header;
+
+        let output = '<table class="w3-table-all" id="history_table">';
+        output += '<tr class="w3-yellow">';
+        //output += '<th>Tx</th>';
+        output += '<th style="width: 20%;">Milestone</th>';
+        output += '<th style="width: 11%;">Date</th>';
+        output += '<th style="width: 13%;">Asset</th>';
+        output += '<th>Comment</th>';
+        output += '</tr>';
+
+        for (const x of first) {
+          output += '<tr>';
+          output += '<td><b>'+x[3]+'</b></td>';
+          output += '<td><a href="https://dogeparty.xchain.io/tx/' + x[1] + '" style="color:inherit;text-decoration:inherit;">'+x[0]+'</a></td>';
+          output += '<td><a href="#" onclick="asset_history(\''+x[2]+'\');window.scroll(0,0);" onmouseover="" style="color:inherit;text-decoration:inherit;">'+x[2]+'</a></td>';
+          output += '<td>'+x[4]+'</td>';
+          output += '</tr>'; 
+        }
+        output += '</table>';
+
+        document.getElementById('history').innerHTML = output;
+      }
+
+    </script>
+
+  </body>
+</html>
