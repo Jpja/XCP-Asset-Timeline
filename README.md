@@ -2,7 +2,7 @@
 
 Shows a timeline of milestones on Counterparty / Dogeparty.
 
-Or lookup an asset to show a timeline specific to that asset.
+Lookup an asset to show a timeline specific to that asset.
 
 Live versions:
 * https://jpjanssen.com/timeline/counterparty.html
@@ -30,8 +30,8 @@ In case of a broadcast by the issuer, but the issuer does not mention the asset 
 
 ## Donate
 
-BTC: bc1qg8vldv8kk4mqafs87z2yv0xpq4wr4csucr3cj7
-DOGE: DChdsuLuEvAPZb9ZXpiEpimgidSJ5VqShq
+* BTC: bc1qg8vldv8kk4mqafs87z2yv0xpq4wr4csucr3cj7
+* DOGE: DChdsuLuEvAPZb9ZXpiEpimgidSJ5VqShq
 
 ## License
 
