@@ -34,6 +34,7 @@ In case of a broadcast by the issuer, but the issuer does not mention the asset 
 
 * BTC: bc1qg8vldv8kk4mqafs87z2yv0xpq4wr4csucr3cj7
 * DOGE: DChdsuLuEvAPZb9ZXpiEpimgidSJ5VqShq
+* ETH: 0x4144CbaF54044510AB2F2f3c51061Dd5558cD604
 
 ## License
 
