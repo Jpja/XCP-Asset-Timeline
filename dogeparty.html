@@ -104,11 +104,17 @@
           table[i].search_words = latinize(table[i].broadcast).toUpperCase();
           table[i].search = table[i].search_words.replace(/ /g,'');
           //mentions own asset? assign asset to broadcast
+          let minpos = 99999999;
           for (let j =0; j < issuance_rights[table[i].address].length; j++) {
-            if (table[i].search.includes(issuance_rights[table[i].address][j].split('.')[0])) {
-              table[i].asset = issuance_rights[table[i].address][j];
-              table[i].asset_arr.push(table[i].asset);
-              //console.log(table[i].address + '  ' + table[i].asset + '  ' + table[i].asset_arr + ' => ' + table[i].broadcast);
+            let pos = table[i].search.indexOf(issuance_rights[table[i].address][j].split('.')[0]); 
+            if (pos > -1) {
+              let asset = issuance_rights[table[i].address][j];
+              table[i].asset_arr.push(asset);
+              //main asset is the first mentioned
+              if (pos < minpos) {
+                minpos = pos;
+                table[i].asset = asset;
+              }
             }
           }
         }
@@ -500,10 +506,10 @@
           }
         }
 
-        //First Non-English
+        //First Non-Ascii
         for (const x of table) {
           if (isASCII(x.text) == false && x.asset != 0) {
-            first.push([x.date, x.txid, x.asset, 'First Non-English', '<i>' + x.text + '</i> is the first text  with a non-ASCII character.']);
+            first.push([x.date, x.txid, x.asset, 'First Special Character', '<i>' + x.text + '</i> is the first text  with a non-ASCII character.']);
             break;
           }
         }
@@ -571,8 +577,9 @@
           }
         }
 
-
+        /*
         //First image in description
+        *** returns PHOTO with text 'Photo' .. subjectively meaningless
         files = ['jpg','jpeg','gif','png','img','image','pic','photo'];
         inner: for (const x of table) {
           if (x.asset == 0) continue;
@@ -582,7 +589,7 @@
               break inner;
             }
           }
-        }
+        }*/
 
         //First JPEG in description
         files = ['jpg','jpeg'];
@@ -620,8 +627,9 @@
           }
         }
 
-
+        /*
         //First eBook reference
+        *** returns EBOOk with text 'EBOOK' .. subjectively meaningless
         files = ['ebook', 'pdf', 'kindle', 'epub', 'doc'];
         inner: for (const x of table) {
           if (x.asset == 0) continue;
@@ -631,7 +639,7 @@
               break inner;
             }
           }
-        }
+        }*/
 
         //First JSON reference
         // happens also to be before keywords csv and api
@@ -704,7 +712,6 @@
           }
         }
 
-
         //First Burned Asset
         regular_asset = false;
         for (const x of table) {
@@ -728,6 +735,38 @@
                 break;
               }
             }
+          }
+        }
+
+        //First NFT by Destruction
+        loop1: for (const x of table) {
+          if (x.supply == 1 && x.lock == 1) {
+            for (const y of table) {
+              if(y.asset == x.asset && y.supply > 1) {
+                first.push([x.date, x.txid, x.asset, 'First NFT by Destruction', 'The first time all but one token are destroyed.']);
+                break loop1;
+              }
+            }
+          }
+        }
+
+        //First interactive
+        files = ['interactive'];
+        inner: for (const x of table) {
+          if (x.asset == 0) continue;
+          for (const f of files) {
+            if (isMatch(x.text, f)) {
+              first.push([x.date, x.txid, x.asset, 'First Interactive', '<i>'+x.text+'</i>.']);
+              break inner;
+            }
+          }
+        }
+
+        //First Punycode
+        for (const x of table) {
+          if (String(x.asset).toUpperCase().includes('XN--') || x.search.includes('XN--')) {
+            first.push([x.date, x.txid, x.asset, 'First Punycode', 'The first punycode is XDOG.🐕']);
+            break;
           }
         }
 
