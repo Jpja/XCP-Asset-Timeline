@@ -16,6 +16,7 @@
         <a class="w3-dark-grey" id="title"><b>Counterparty Asset Timeline</b></a>
         <a href="#" onclick="list_of_firsts()">Milestones</a>
         <a href="#" onclick="list_of_nfts()">NFT</a>
+        <a href="#" onclick="list_of_1ns()">1/N</a>
         <a href="#" onclick="asset_history('RND')">Random</a>
         <div class="search-container">
           <input type="text" placeholder="Search.." id="search" name="counterparty_search" oninput="search_color()">
@@ -197,6 +198,12 @@
         //magic word NFT unveils list of non-fungible tokens
         if (asset == 'NFT') {
           list_of_nfts();
+          return;
+        }
+
+        //magic word 1N unveils list of 1/Ns
+        if (asset == '1N') {
+          list_of_1ns();
           return;
         }
 
@@ -466,6 +473,22 @@
         for (const x of table) {
           if (x.supply == 1 && x.lock == 1) {
             first.push([x.date, x.txid, x.asset, 'First NFT', 'The first time a non-fungible token is minted, i.e. supply locked at one indivisible token.']);
+            break;
+          }
+        }
+
+        //First 1/N with N <= 1000
+        for (const x of table) {
+          if (x.supply > 1 && x.supply <= 1000 && x.divisible == 0 && (x.lock == 1 || isBurnAddress(x.address, 10, true))) {
+            first.push([x.date, x.txid, x.asset, 'First Scarce 1/N', 'First 1/N with supply locked at maximum 1000 indivisble tokens.']);
+            break;
+          }
+        }
+
+        //First 1/N with N <= 100
+        for (const x of table) {
+          if (x.supply > 1 && x.supply <= 100 && x.divisible == 0 && (x.lock == 1 || isBurnAddress(x.address, 10, true))) {
+            first.push([x.date, x.txid, x.asset, 'First Ultra Scarce 1/N', 'First 1/N NFT with supply locked at maximum 100 indivisble tokens.']);
             break;
           }
         }
@@ -855,6 +878,106 @@
           output += '<td><a href="#" onclick="asset_history(\''+x[2]+'\');window.scroll(0,0);" onmouseover="" style="color:inherit;text-decoration:inherit;">'+x[2]+'</a></td>';
           output += '<td>'+x[4]+'</td>';
           output += '</tr>'; 
+        }
+        output += '</table>';
+
+        document.getElementById('history').innerHTML = output;
+      }
+
+
+
+      // ******************
+      // ** LIST OF 1/Ns **
+      // ******************
+      function list_of_1ns() {
+        let first = []; //Time, Asset, Title, Comment, Supply
+
+        let min = url.searchParams.get("min");
+        let max = url.searchParams.get("max");
+        let filter1 = url.searchParams.get("filter1");
+        let filter2 = url.searchParams.get("filter2"); 
+
+        if (min == null) min = 2;
+        if (max == null) max = 3000;
+
+        let nfts = [];
+        //First NFT
+        let nftcount = 0;
+        let yearcount = {};
+        let i = -1;
+        for (const x of table) {
+          i += 1;
+          if (x.supply >= min && x.supply <= max && (x.lock == 1 || isBurnAddress(x.address, 10, true))) {
+            if (x.asset.startsWith(filter1)) continue;
+            if (x.asset.startsWith(filter2)) continue;
+            //Log if burn address
+            //if (isBurnAddress(x.address, 10, true)) console.log(x.asset + ' locked by burn; ' + x.address);
+            if (nfts.includes(x.asset)) {
+              //Subsequent issuances inherit 'LOCK'. We only care about the first time.
+              //console.log(x.txid + '   ' + x.asset + ' already locked');
+              continue;
+            } else {
+              nfts.push(x.asset);
+            }
+            nftcount += 1;
+            let descr = '';
+            //To find description, loop back to initial issuance 
+            for (let j = i; j >= 0; j--) {
+              if (table[j].asset == x.asset) {
+                descr = table[j].description;
+                if (descr != '0') break;
+                if (table[j].type == 'new') break;
+              }
+            }
+            first.push([x.date, x.txid, x.asset, '#'+nftcount, '<i>'+descr+'</i>', x.supply]);
+            //break;
+            //Stats
+            let year = x.date.substring(0,4);
+            let asset_kind = (x.asset[0] == 'A') ? 'num' : 'named';
+            let key = year + '-all';
+            if (yearcount[key]) {yearcount[key] += 1} else {yearcount[key] = 1};
+            key = year + '-' + asset_kind;
+            if (yearcount[key]) {yearcount[key] += 1} else {yearcount[key] = 1};
+          }
+        }
+
+        for (const key in yearcount) {
+          console.log(`${key}:  ${yearcount[key]}`);
+        }
+
+        first.sort();
+
+        let header = '';
+        header += '<br><p style="font-weight:bold;background-color:#FFFF99"">&nbsp;<br>';
+        header += 'Tip: Use Search Bar To Find An Asset<br>&nbsp;</p>';
+        header += '<h1>Counterparty 1/Ns</h1><p>List of 1/N tokens<br>locked at ' + min + '-' + max + ' units.</p>';
+        header += '<p>Select filter:<br>';
+        if (min != 1 || max != 30)     {header += '<a href="?asset=1N&min=1&max=30&filter1=FW&filter2=BN">1-30</a><br>';} else {header += '<b>1-30</b><br>';}
+        if (min != 31 || max != 300)   {header += '<a href="?asset=1N&min=31&max=300&filter1=A&filter2=FW">31-300</a><br>';} else {header += '<b>31-300</b><br>';}
+        if (min != 301 || max != 3000) {header += '<a href="?asset=1N&min=301&max=3000&filter1=A&filter2=FW">301-3000</a><br>';} else {header += '<b>301-3000</b><br>';}
+        if (filter1 || filter2) {header += 'Filter 1: Ignore if starts with <i>' + filter1 + '</i><br>Filter 2:  Ignore if starts with <i>' + filter2 + '</i><br>';
+                                 header += '<a href="?asset=1N">Show all</a>'};
+        header += '</p>';
+        document.getElementById('header').innerHTML = header;
+
+        let output = '<table class="w3-table-all" id="history_table">';
+        output += '<tr class="w3-dark-grey">';
+        //output += '<th>Tx</th>';
+        output += '<th style="width: 11%;">Rank</th>';
+        output += '<th style="width: 11%;">Date</th>';
+        output += '<th style="width: 15%;">Asset</th>';
+        output += '<th style="width: 8%;text-align: right;">Supply</th>';
+        output += '<th>Description</th>';
+        output += '</tr>';
+
+        for (const x of first) {
+          output += '<tr>';
+          output += '<td><b>'+x[3]+'</b></td>';
+          output += '<td><a href="https://xchain.io/tx/' + x[1] + '" style="color:inherit;text-decoration:inherit;">'+x[0]+'</a></td>';
+          output += '<td><a href="#" onclick="asset_history(\''+x[2]+'\');window.scroll(0,0);" onmouseover="" style="color:inherit;text-decoration:inherit;">'+x[2]+'</a></td>';
+          output += '<td style="text-align: right;">'+x[5]+'</td>';
+          output += '<td>'+x[4]+'</td>';
+          output += '</tr>';
         }
         output += '</table>';
 
