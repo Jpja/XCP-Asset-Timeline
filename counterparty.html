@@ -477,22 +477,30 @@
           }
         }
 
-        //First 1/N with N <= 1000
+        //First 1/N with N <= 3000
         for (const x of table) {
-          if (x.supply > 1 && x.supply <= 1000 && x.divisible == 0 && (x.lock == 1 || isBurnAddress(x.address, 10, true))) {
-            first.push([x.date, x.txid, x.asset, 'First Scarce 1/N', 'First 1/N with supply locked at maximum 1000 indivisble tokens.']);
+          if (x.supply > 1 && x.supply <= 3000 && x.divisible == 0 && (x.lock == 1 || isBurnAddress(x.address, 10, true))) {
+            first.push([x.date, x.txid, x.asset, 'First Somewhat Scarce 1/N', 'With a supply of ' + x.supply + ', this is the first 1/N with supply locked at maximum 3000 indivisble tokens.']);
             break;
           }
         }
 
-        //First 1/N with N <= 100
+        //First 1/N with N <= 300
         for (const x of table) {
-          if (x.supply > 1 && x.supply <= 100 && x.divisible == 0 && (x.lock == 1 || isBurnAddress(x.address, 10, true))) {
-            first.push([x.date, x.txid, x.asset, 'First Ultra Scarce 1/N', 'First 1/N NFT with supply locked at maximum 100 indivisble tokens.']);
+          if (x.supply > 1 && x.supply <= 300 && x.divisible == 0 && (x.lock == 1 || isBurnAddress(x.address, 10, true))) {
+            first.push([x.date, x.txid, x.asset, 'First Truly Scarce 1/N', 'With a supply of ' + x.supply + ', this is the first 1/N NFT with supply locked at maximum 300 indivisble tokens.']);
             break;
           }
         }
-
+        
+        //First 1/N with N <= 30
+        for (const x of table) {
+          if (x.supply > 1 && x.supply <= 30 && x.divisible == 0 && (x.lock == 1 || isBurnAddress(x.address, 10, true))) {
+            first.push([x.date, x.txid, x.asset, 'First Ultra Scarce 1/N', 'With a supply of ' + x.supply + ', this is the first 1/N with supply locked at maximum 30 indivisble tokens.']);
+            break;
+          }
+        }
+        
         //First Single Satoshi NFT
         for (const x of table) {
           if (x.supply == 1 && x.divisible == 1 & x.lock == 1) {
