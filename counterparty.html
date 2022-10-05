@@ -160,6 +160,7 @@
       let url = new URL(url_string);
       let query = url.searchParams.get("asset");
       let show_mentions = url.searchParams.get("mentions"); //if 'off' don't show
+      let show_issuer_msg = url.searchParams.get("issuer_msg"); //if 'off' don't show
       asset_history(query);
 
 
@@ -298,6 +299,10 @@
 
           if (event == 'other_mention' && show_mentions == 'off') { 
             continue;  
+          }
+
+          if (event == 'issuer_msg' && show_issuer_msg == 'off') { 
+            continue;
           }
 
           //Prepare text
@@ -492,7 +497,7 @@
             break;
           }
         }
-        
+
         //First 1/N with N <= 30
         for (const x of table) {
           if (x.supply > 1 && x.supply <= 30 && x.divisible == 0 && (x.lock == 1 || isBurnAddress(x.address, 10, true))) {
@@ -500,7 +505,7 @@
             break;
           }
         }
-        
+
         //First Single Satoshi NFT
         for (const x of table) {
           if (x.supply == 1 && x.divisible == 1 & x.lock == 1) {
